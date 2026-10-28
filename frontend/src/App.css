@@ -1,0 +1,191 @@
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: #f5f7fb;
+  font-family: Arial, sans-serif;
+  color: #1e293b;
+}
+
+button, input {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  border-radius: 6px;
+  padding: 10px 14px;
+  background: #2563eb;
+  color: white;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.app-container {
+  max-width: 850px;
+  margin: 50px auto;
+  padding: 30px;
+  background: white;
+  border-radius: 14px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+}
+
+.app-header h1 {
+  margin-bottom: 25px;
+}
+
+.app-header p {
+  color: #64748b;
+}
+
+.stats {
+  display: flex;
+  gap: 15px;
+  margin: 25px 0;
+}
+
+.stats div {
+  flex: 1;
+  padding: 15px;
+  background: #eff6ff;
+  border-radius: 8px;
+  text-align: center;
+  font-weight: bold;
+}
+
+.add-form {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 30px;
+}
+
+.add-form input,
+.edit-form input {
+  flex: 1;
+  min-width: 0;
+  padding: 11px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+}
+
+.list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.todo-list {
+  list-style: none;
+  padding: 0;
+}
+
+.todo-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 15px 0;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.todo-title {
+  flex: 1;
+  overflow-wrap: anywhere;
+}
+
+.completed {
+  text-decoration: line-through;
+  color: #94a3b8;
+}
+
+.todo-actions,
+.edit-form {
+  display: flex;
+  gap: 6px;
+}
+
+.edit-form {
+  flex: 1;
+}
+
+.secondary {
+  background: #e2e8f0;
+  color: #334155;
+}
+
+.danger {
+  background: #dc2626;
+  color: white;
+}
+
+.details-panel {
+  margin-top: 30px;
+  padding: 20px;
+  background: #f8fafc;
+  border-radius: 8px;
+  overflow-wrap: anywhere;
+}
+
+.error-message {
+  padding: 12px;
+  margin-bottom: 15px;
+  background: #fee2e2;
+  color: #991b1b;
+  border-radius: 6px;
+}
+
+.empty-message {
+  color: #64748b;
+  text-align: center;
+  padding: 25px;
+}
+
+.data-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 650px) {
+  .app-container {
+    margin: 15px;
+    padding: 18px;
+  }
+
+  .stats {
+    flex-wrap: wrap;
+  }
+
+  .todo-item {
+    flex-wrap: wrap;
+  }
+
+  .todo-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .edit-form {
+    flex-wrap: wrap;
+  }
+
+    .list-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .data-actions {
+    width: 100%;
+  }
+
+  .data-actions button {
+    flex: 1;
+  }
+}
