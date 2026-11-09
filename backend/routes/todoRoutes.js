@@ -3,49 +3,65 @@ const express = require("express");
 const mongoose = require("mongoose");
 const Todo = require("../models/Todo");
 
+
 const router = express.Router();
 
-const { redisClient } = require("../config/redis");
+const requireAuth = require("../middleware/requireAuth");
 
-const CACHE_KEY = "todos:all";
+router.use(requireAuth);
+
+// TODO: Import the Redis client from the redis.js file
+const { connectRedis, redisClient } = require("../config/redis");
+
+const getTodosCacheKey = (userId) => `todos:user:${userId.toString()}`;
+
 const CACHE_TTL = 30; // Cache time-to-live in seconds
 
-async function invalidateTodosCache() {
+// TODO: Create a function to invalidate the todos cache in Redis
+async function invalidateTodosCache(userId) {
+  const cacheKey = getTodosCacheKey(userId)
   try {
-    await redisClient.del(CACHE_KEY);
-    console.log("Todos cache invalidated");
+    await redisClient.del(cacheKey);
+    console.log("[Cache] Invalidated todos:all");
   } catch (error) {
-    console.error("Error invalidating todos cache:", error);
+    console.error("[Cache] Invalidation failed: ", error.message);
   }
 }
 
 // GET all todos
 router.get("/", async (req, res) => {
+  const cacheKey = getTodosCacheKey(req.user._id);
   try {
     try {
-      // 1. Check if todos are cached in Redis
-      const cachedTodos = await redisClient.get(CACHE_KEY);
-
+      // TODO: 1. Check if todos are cached in Redis
+      const cachedTodos = await redisClient.get(cacheKey);
+      // TODO: 2. If cached, return the cached todos
       if (cachedTodos) {
-        console.log("Serving todos from Redis cache");
+        console.log("[Cache] HIT:todos:all");
         return res.status(200).json(JSON.parse(cachedTodos));
       }
     } catch (error) {
       console.error("Redis error:", error);
     }
 
+    // If not cached, fetch todos from MongoDB
     console.log("Fetching todos from MongoDB");
-    const todos = await Todo.find().sort({ createdAt: -1 });
+    const todos = await Todo.find({
+      user: req.user._id,
+    }).sort({ createdAt: -1 });
 
-    // Store the fetched todos in Redis cache
+    // TODO: Store the fetched todos in Redis cache
     try {
-      await redisClient.setEx(
-        CACHE_KEY,
-        CACHE_TTL,
-        JSON.stringify(todos)
+      await redisClient.set(
+        cacheKey,
+        JSON.stringify(todos),
+        { EX: CACHE_TTL }
       );
-    } catch (error) {
-      console.error("Redis error:", error);
+
+      console.log("[Cache] Stored todos:all for 30 seconds")
+    } catch (cacheError) {
+      console.warn("[Cache] Write failed: ", cacheError.message);
+      // Still return the MongoDB result
     }
 
     return res.status(200).json(todos);
@@ -112,7 +128,10 @@ router.get("/:id", async (req, res) => {
       });
     }
 
-    const todo = await Todo.findById(id);
+    const todo = await Todo.findOne({
+      _id: req.params.id,
+      user: req.user._id,
+    });
 
     if (!todo) {
       return res.status(404).json({
@@ -211,7 +230,7 @@ router.post("/import", async (req, res) => {
 
     const result = await Todo.bulkWrite(operations);
 
-    await invalidateTodosCache();
+    await invalidateTodosCache(req.user._id);
 
     res.status(200).json({
       message: "Import completed successfully",
@@ -233,9 +252,12 @@ router.post("/", async (req, res) => {
   try {
     const todo = await Todo.create({
       title: req.body.title,
+      completed: false,
+      user: req.user._id,
     });
 
-    await invalidateTodosCache();
+    // TODO: Invalidate the todos cache in Redis after creating a new todo
+    await invalidateTodosCache(req.user._id);
 
     res.status(201).json(todo);
   } catch (error) {
@@ -261,22 +283,28 @@ router.put("/:id", async (req, res) => {
       });
     }
 
-    const updatedTodo = await Todo.findByIdAndUpdate(
-      id,
-      { title, completed },
-      {
-        new: true,
-        runValidators: true,
-      }
-    );
-
+    const updatedTodo = await Todo.findOneAndUpdate(
+    {
+      _id: req.params.id,
+      user: req.user._id,
+    },
+    {
+      $set: {
+        title: req.body.title,
+      },
+    },
+    {
+      new: true,
+      runValidators: true,
+    }
+  );
     if (!updatedTodo) {
       return res.status(404).json({
         error: "Todo not found",
       });
     }
 
-    await invalidateTodosCache();
+    await invalidateTodosCache(req.user._id);
 
     res.status(200).json(updatedTodo);
   } catch (error) {
@@ -307,21 +335,30 @@ router.patch("/:id", async (req, res) => {
       });
     }
 
-    const updatedTodo = await Todo.findByIdAndUpdate(
-      id,
-      { $set: updates },
-      {
-        new: true,
-        runValidators: true,
-      }
-    );
+    const updatedTodo = await Todo.findOneAndUpdate(
+    {
+      _id: req.params.id,
+      user: req.user._id,
+    },
+    {
+      $set: {
+        title: req.body.title,
+      },
+    },
+    {
+      new: true,
+      runValidators: true,
+    }
+  );
 
     if (!updatedTodo) {
       return res.status(404).json({
         error: "Todo not found",
       });
     }
-    await invalidateTodosCache();
+
+    // TODO: Invalidate the todos cache in Redis after updating a todo
+    await invalidateTodosCache(req.user._id);
 
     res.status(200).json(updatedTodo);
   } catch (error) {
@@ -332,9 +369,12 @@ router.patch("/:id", async (req, res) => {
 // DELETE all todos
 router.delete("/", async (req, res) => {
   try {
-    const result = await Todo.deleteMany({});
+    await Todo.deleteMany({
+      user: req.user._id,
+    });
 
-    await invalidateTodosCache();
+    // TODO: Invalidate the todos cache in Redis after deleting all todos
+    await invalidateTodosCache(req.user._id);
 
     res.status(200).json({
       message: "All todos deleted successfully",
@@ -356,7 +396,20 @@ router.delete("/:id", async (req, res) => {
       });
     }
 
-    const todo = await Todo.findByIdAndDelete(id);
+    const deletedTodo = await Todo.findOneAndDelete({
+      _id: req.params.id,
+      user: req.user._id,
+    });
+
+    if (!deletedTodo) {
+      return res.status(404).json({
+        message: "Todo not found",
+      });
+    }
+
+    res.json({
+      message: "Todo deleted",
+    });
 
     if (!todo) {
       return res.status(404).json({
@@ -364,7 +417,7 @@ router.delete("/:id", async (req, res) => {
       });
     }
 
-    await invalidateTodosCache();
+    await invalidateTodosCache(req.user._id);
 
     res.status(200).json({
       message: "Todo deleted successfully",
