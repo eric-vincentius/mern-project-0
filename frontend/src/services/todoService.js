@@ -1,90 +1,122 @@
+const API_URL =
+  import.meta.env.VITE_API_URL ||
+  "http://localhost:5000/api";
 
-const API_URL = `${import.meta.env.VITE_API_URL}/api/todos`;
+async function apiRequest(path, token, options = {}) {
+  if (!token) {
+    throw new Error("Please log in first");
+  }
 
-async function request(url, options = {}) {
-  const response = await fetch(url, {
+  const response = await fetch(`${API_URL}${path}`, {
     ...options,
     headers: {
-      "Content-Type": "application/json",
       ...options.headers,
+      Authorization: `Bearer ${token}`,
     },
   });
 
   const data = await response.json();
 
   if (!response.ok) {
-    throw new Error(data.error || "API request failed");
+    throw new Error(
+      data.message || data.error || "Request failed"
+    );
   }
 
   return data;
 }
 
+function jsonOptions(method, data) {
+  return {
+    method,
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(data),
+  };
+}
+
 export const todoService = {
-  // GET all todos
-  getAll: () => request(API_URL),
+  getAll(token) {
+    return apiRequest("/todos", token);
+  },
 
-  // GET todo by ID
-  getById: (id) => request(`${API_URL}/${id}`),
+  getById(id, token) {
+    return apiRequest(`/todos/${id}`, token);
+  },
 
-  // POST new todo
-  create: (title) =>
-    request(API_URL, {
-      method: "POST",
-      body: JSON.stringify({ title }),
-    }),
+  create(title, token) {
+    return apiRequest(
+      "/todos",
+      token,
+      jsonOptions("POST", { title })
+    );
+  },
 
-  // PUT update todo
-  update: (id, todo) =>
-    request(`${API_URL}/${id}`, {
-      method: "PUT",
-      body: JSON.stringify(todo),
-    }),
+  update(id, updates, token) {
+    return apiRequest(
+      `/todos/${id}`,
+      token,
+      jsonOptions("PUT", updates)
+    );
+  },
 
-  // PATCH partial update
-  patch: (id, changes) =>
-    request(`${API_URL}/${id}`, {
-      method: "PATCH",
-      body: JSON.stringify(changes),
-    }),
+  patch(id, updates, token) {
+    return apiRequest(
+      `/todos/${id}`,
+      token,
+      jsonOptions("PATCH", updates)
+    );
+  },
 
-  // DELETE todo by ID
-  deleteById: (id) =>
-    request(`${API_URL}/${id}`, {
+  deleteById(id, token) {
+    return apiRequest(`/todos/${id}`, token, {
       method: "DELETE",
-    }),
+    });
+  },
 
-  // DELETE all todos
-  deleteAll: () =>
-    request(API_URL, {
+  deleteAll(token) {
+    return apiRequest("/todos", token, {
       method: "DELETE",
-    }),
+    });
+  },
 
-  // Export todos to a JSON file
-    exportData: async () => {
-    const response = await fetch(`${API_URL}/export`);
+  importData(data, token) {
+    return apiRequest(
+      "/todos/import",
+      token,
+      jsonOptions("POST", data)
+    );
+  },
+
+  async exportData(token) {
+    if (!token) {
+      throw new Error("Please log in first");
+    }
+
+    const response = await fetch(
+      `${API_URL}/todos/export`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
 
     if (!response.ok) {
-        throw new Error("Failed to export todos");
+      throw new Error("Failed to export todos");
     }
 
     const blob = await response.blob();
     const url = URL.createObjectURL(blob);
-
     const link = document.createElement("a");
+
     link.href = url;
     link.download = `todos-${Date.now()}.json`;
-
     document.body.appendChild(link);
     link.click();
     link.remove();
 
     URL.revokeObjectURL(url);
-    },
-
-    // Import todos from JSON data
-    importData: (data) =>
-    request(`${API_URL}/import`, {
-        method: "POST",
-        body: JSON.stringify(data),
-    }),
+  },
 };
