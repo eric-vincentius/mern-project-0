@@ -14,8 +14,6 @@ This README is intended for students who are cloning the repository and running 
 - Import and export Todo data as JSON (see the security note below).
 - Test frontend services and backend APIs with Vitest; backend integration tests use MongoDB Memory Server.
 
-> **Teaching project:** Do not deploy this version publicly or use real personal data until the import/export ownership checks and other production security controls have been reviewed. In an earlier version of `todoRoutes.js`, export queried all users' Todos and import could update records by ID without checking ownership.
-
 ## Prerequisites
 
 Install these before starting:
