@@ -348,7 +348,7 @@ npm run
 - Review and fix JSON import/export ownership handling before allowing multiple users to use those features.
 - For production, add HTTPS, rate limiting, stronger validation, secure secret management, and an appropriate JWT/session renewal strategy.
 
-## Student exercises
+## Further exercises
 
 After the app works, try these exercises:
 
