@@ -1,8 +1,6 @@
-# MERN Stack Todo App
+# MERN Stack Todo App: Usage Guide
 
 A learning project for building a full-stack Todo application with **MongoDB, Express.js, React (Vite), Node.js, JWT authentication, and Redis caching**.
-
-This README is intended for students who are cloning the repository and running it **locally for the first time**, including on **Windows with PowerShell and Docker Desktop**.
 
 ## Features
 
