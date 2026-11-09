@@ -21,6 +21,10 @@ const CACHE_TTL = 30; // Cache time-to-live in seconds
 async function invalidateTodosCache(userId) {
   const cacheKey = getTodosCacheKey(userId)
   try {
+    if (!redisClient.isReady) {
+      return;
+    }
+
     await redisClient.del(cacheKey);
     console.log("[Cache] Invalidated todos:all");
   } catch (error) {
@@ -250,65 +254,112 @@ router.post("/import", async (req, res) => {
 // POST a new todo
 router.post("/", async (req, res) => {
   try {
+    const { title } = req.body;
+
+    if (
+      typeof title !== "string" ||
+      !title.trim() ||
+      title.trim().length > 100
+    ) {
+      return res.status(400).json({
+        error: "Title must contain 1 to 100 characters",
+      });
+    }
+
     const todo = await Todo.create({
-      title: req.body.title,
+      title: title.trim(),
       completed: false,
       user: req.user._id,
     });
 
-    // TODO: Invalidate the todos cache in Redis after creating a new todo
     await invalidateTodosCache(req.user._id);
 
-    res.status(201).json(todo);
+    return res.status(201).json(todo);
   } catch (error) {
-    res.status(400).json({ error: error.message });
+    return res.status(400).json({
+      error: error.message,
+    });
   }
 });
 
+
 // PUT - Update a todo by ID
+
 router.put("/:id", async (req, res) => {
   try {
     const { id } = req.params;
     const { title, completed } = req.body;
 
+    console.log("PUT request body:", req.body);
+
     if (!mongoose.isValidObjectId(id)) {
       return res.status(400).json({
-        error: "Invalid todo ID",
+        message: "Invalid Todo ID",
       });
     }
 
-    if (title === undefined || completed === undefined) {
+    if (
+      typeof title !== "string" ||
+      !title.trim() ||
+      title.trim().length > 100
+    ) {
       return res.status(400).json({
-        error: "Both title and completed are required",
+        message: "Invalid Todo title",
       });
     }
 
-    const updatedTodo = await Todo.findOneAndUpdate(
-    {
-      _id: req.params.id,
+    if (
+      completed !== undefined &&
+      typeof completed !== "boolean"
+    ) {
+      return res.status(400).json({
+        message: "Completed must be a boolean",
+      });
+    }
+
+    // Find the Todo belonging to the logged-in user
+    const todo = await Todo.findOne({
+      _id: id,
       user: req.user._id,
-    },
-    {
-      $set: {
-        title: req.body.title,
-      },
-    },
-    {
-      new: true,
-      runValidators: true,
-    }
-  );
-    if (!updatedTodo) {
+    });
+
+    if (!todo) {
       return res.status(404).json({
-        error: "Todo not found",
+        message: "Todo not found",
       });
     }
 
+    console.log("Before update:", {
+      title: todo.title,
+      completed: todo.completed,
+    });
+
+    // Update the fields
+    todo.title = title.trim();
+
+    if (completed !== undefined) {
+      todo.completed = completed;
+    }
+
+    // Save the updated document
+    await todo.save();
+
+    console.log("After update:", {
+      title: todo.title,
+      completed: todo.completed,
+    });
+
+    // Invalidate the user's Redis cache
     await invalidateTodosCache(req.user._id);
 
-    res.status(200).json(updatedTodo);
+    return res.status(200).json(todo);
+
   } catch (error) {
-    res.status(400).json({ error: error.message });
+    console.error("PUT Todo error:", error);
+
+    return res.status(500).json({
+      message: "Failed to update Todo",
+    });
   }
 });
 
@@ -341,12 +392,10 @@ router.patch("/:id", async (req, res) => {
       user: req.user._id,
     },
     {
-      $set: {
-        title: req.body.title,
-      },
+      $set: updates,
     },
     {
-      new: true,
+      returnDocument: "after",
       runValidators: true,
     }
   );
@@ -369,19 +418,20 @@ router.patch("/:id", async (req, res) => {
 // DELETE all todos
 router.delete("/", async (req, res) => {
   try {
-    await Todo.deleteMany({
+    const result = await Todo.deleteMany({
       user: req.user._id,
     });
 
-    // TODO: Invalidate the todos cache in Redis after deleting all todos
     await invalidateTodosCache(req.user._id);
 
-    res.status(200).json({
+    return res.status(200).json({
       message: "All todos deleted successfully",
       deletedCount: result.deletedCount,
     });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    return res.status(500).json({
+      error: error.message,
+    });
   }
 });
 

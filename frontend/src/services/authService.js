@@ -1,3 +1,4 @@
+
 const API_URL =
   import.meta.env.VITE_API_URL ||
   "http://localhost:5000/api";
@@ -15,6 +16,7 @@ async function handleResponse(response) {
 }
 
 export const authService = {
+  // REGISTER
   async register(name, email, password) {
     const response = await fetch(
       `${API_URL}/auth/register`,
@@ -34,6 +36,7 @@ export const authService = {
     return handleResponse(response);
   },
 
+  // LOGIN
   async login(email, password) {
     const response = await fetch(
       `${API_URL}/auth/login`,
@@ -46,6 +49,21 @@ export const authService = {
           email,
           password,
         }),
+      }
+    );
+
+    return handleResponse(response);
+  },
+
+  // GET CURRENT AUTHENTICATED USER
+  async getMe(token) {
+    const response = await fetch(
+      `${API_URL}/auth/me`,
+      {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
       }
     );
 
